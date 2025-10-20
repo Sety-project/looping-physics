@@ -1,0 +1,110 @@
+\documentclass{article}
+\usepackage{amsmath,amssymb,hyperref}
+
+\begin{document}
+
+% Remove paragraph indentation throughout the document
+\setlength{\parindent}{0pt}
+
+\title{Bootstrapping Looping Strategies - DEX LP looping extension}
+\author{david.relkin@nomadic-labs.com}
+\date{\today}
+\maketitle
+
+\begin{abstract}
+    We extend "Bootstrapping Looping Strategies" to include a DEX LP looping vault, and capped fixed yield lending club reward.
+    The optimization problem is formulated as a constrained optimization problem and is not longer linear; 
+    it may be solved using the Lagrange multiplier method.
+\end{abstract}
+
+\section{Looping: 5 components Ecosystem}
+
+Looping is made up of:
+    \begin{itemize}
+        \item a yield-bearing asset with yield $r$, correlated to a base asset (eg mRe7 correlated to USDC).
+        \item a DEX protocol (eg Curve)
+        \begin{itemize}
+            \item direct liquidity
+            \footnote{DEX liquidity is defined as the sum of the two pools}
+            (ie. not via looping vault below) supplied by users: $N_d$, and sponsor: $N_d^*$ 
+            \item fee APY: $r_d\approx 0$
+            \item reward paid by sponsor: $R_d$
+        \end{itemize}
+        \item a looping vault (eg Gearbox credit account)
+        \begin{itemize}
+            \item deposit by users only: $N_v$ (and $N_v^*=0)$
+            \item reward paid by sponsor: $R_v$
+            \item borrow rate $r_v$
+            \item We assume $r$ is high enough so that loopers seek maximum leverage $l_v$, 
+            so that $N_v^b=N_v(l_v-1)$
+        \end{itemize}
+        \item a DEX LP looping vault (eg Gearbox credit account)
+        \begin{itemize}
+            \item deposit by users: $N_{vd}$, and sponsor $N_{vd}^*$
+            \item reward paid by sponsor: $R_{vd}$
+            \item borrow rate $r_{vd}$
+            \item We can assume $\frac{r}{2}+\frac{R_d}{N_d+N_d^*}$ is high enough for loopers to seek maximum leverage $l_{vd}$, 
+            so $N_{vd}^b = N_{vd}(l_{vd}-1)$
+        \end{itemize}
+        \item a Lending pool (eg Gearbox passive pool):
+        \begin{itemize}
+            \item supply by users: $N_l$, and sponsor: $N_l^*$
+            \item We assume utilization at $U=90\%$ target : 
+            \begin{equation}
+                 N_{v}(l_{v}-1) + (N_{vd}+N_{vd}^*)(l_{vd}-1) = U(N_l+N_l^*)
+            \end{equation}
+            \item We assume curator cap is maxxed out: 
+            \begin{equation*}    
+                 l_v N_v + \frac{1}{2} l_{vd} (N_{vd}+N_{vd}^*) =
+                  \alpha( N_d + N_d^* +  l_{vd} (N_{vd}+N_{vd}^*))
+            \end{equation*} where $\alpha=0.5$, so that:
+            \begin{equation}    
+                l_v N_v = \alpha( N_d + N_d^*)
+           \end{equation} where $\alpha=0.5$
+            \item lending rate curve: 
+            \begin{equation}
+                r_l = \frac{r_v N_v(l_v-1)+r_{vd} (N_{vd}+N_{vd}^*)(l_{vd}-1)}{N_v(l_v-1)+(N_{vd}+N_{vd}^*)(l_{vd}-1)}(1-\epsilon)
+            \end{equation}
+            \item reward\footnote{Rewards are defined as a fixed annual budget and the sponsor is blacklisted, ie $APY = \frac{R}{N}$} paid by sponsor: $R_l$
+            \item capped fixed yield lending club reward: $min(r_{lc} N_l, R_{lc})$.
+        \end{itemize}
+        
+    \end{itemize}
+
+    
+\subsection{Equilibrium APYs: empirical observations}
+    Expressing each personna's APY:
+    \begin{equation}
+    \left\{
+    \begin{aligned}
+        APY_l &= r_l + \frac{R_l}{N_l}\\
+        APY_d &\approx \frac{r}{2}+\frac{R_d}{N_d+l_{vd}N_{vd}}\\
+        APY_v &= l_v \space r - (l_v-1)r_v + \frac{R_v}{N_v}\\
+        APY_{vd} &= l_{vd} APY_d - (l_{vd}-1)r_{vd} + \frac{R_{vd}}{N_{vd}}
+    \end{aligned}
+    \right.
+    \end{equation}
+    
+    Market APYs can be estimated by AB testing, ie shocking reward budget every epoch and observing where TVL stabilitizes 
+    \footnote{In further studies we may estimate and use the half-life of this equilibrium and the present study dynamic}. \\
+    For stable lending and DEX, we observed $APY_l=15\%$ and $APY_d=20\%$. \\
+    For looping we assess the mimimum APY with high marketing impact to be $APY_v=75\%$ and $APY_{vd}=100\%$.
+
+\subsection{Sponsor budget}
+
+The sponsor is bound by a liquidity budget and a reward target.
+The latter includes reward paid, cost of capital (0 for now), offset by APY accrued:
+\begin{equation*}
+    \left\{
+    \begin{aligned}
+    N_l^* + N_d^* + N_{vd}^* &<= N\\
+    (R_l+R_d+R_v+R_{vd}) - N_l^* r_l - N_d^* \frac{r}{2} 
+    - l_{vd} N_{vd}^* \frac{r}{2} + r_{vd} N_{vd}^* (l_{vd}-1) &= R
+    \end{aligned}
+    \right.
+\end{equation*}
+Also, all rewards and notionals are positive.
+
+\end{document}
+
+

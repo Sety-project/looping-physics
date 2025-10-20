@@ -1,0 +1,217 @@
+\documentclass{article}
+\usepackage{amsmath,amssymb,hyperref}
+
+\begin{document}
+
+% Remove paragraph indentation throughout the document
+\setlength{\parindent}{0pt}
+
+\title{Bootstrapping Looping Strategies}
+\author{david.relkin@nomadic-labs.com}
+\date{\today}
+\maketitle
+
+\begin{abstract}
+    Although very profitable for users, looping strategies are resource-intensive and require skillful management at chain level.
+    This paper presents a formalization of the bootstrapping optimization of a looping ecosystem, which allows to optimize the chain sponsor's resource consumption.
+
+We only formalize the equilibrium state of the ecosystem, with strong but intuitive assumptions that lead to a closed form solution.
+    
+    The optimization problem is formulated as a constrained optimization problem and solved using the Lagrange multiplier method.
+\end{abstract}
+
+\section{Looping: a 4 Dapp Ecosystem}
+
+Looping is made up of components:
+    \begin{itemize}
+        \item a yield-bearing asset with yield $r$, correlated to a base asset (eg mRe7 correlated to USDC).
+        \item a Lending protocol (eg Gearbox passive pool):
+        \begin{itemize}
+            \item supply by users: $N_l$, and sponsor: $N_l^*$
+            \item borrowed amount: $N_b<=(N_l+N_l^*)$
+            \item the protocol's risk manager sets the borrow cap proportional to dex liquidity: $N_b<=g (N_d+N_d^*)$
+            \item borrow rate curve: $r_b=IR(\frac{N_b}{N_l+N_l^*})$
+            \item lending rate curve: $r_b(1-\epsilon)$
+            \item reward\footnote{Rewards are defined as a fixed annual budget and the sponsor is blacklisted, ie $APY = \frac{R}{N}$} paid by sponsor: $R_l$
+        \end{itemize}
+        \item a DEX protocol (eg Curve)
+        \begin{itemize}
+            \item liquidity\footnote{DEX liquidity is defined as the sum of the two pools} supplied by users: $N_d$, and sponsor: $N_d^*$ 
+            \item fee APY: $r_d\approx 0$
+            \item reward paid by sponsor: $R_d$
+        \end{itemize}
+        \item a looping vault (eg Gearbox credit account)
+        \begin{itemize}
+            \item deposit by users only: $N_v$ (and $N_v^*=0)$
+            \item We assume r is high enough so that loopers seek maximum leverage $l$, so that $N_b=N_v(l-1)$
+            \item reward paid by sponsor: $R_v$
+        \end{itemize}
+    \end{itemize}
+
+    \subsection{Borrowed amount: Lending + DEX constraint}
+    The interest rate curve is parametrized by:
+    \begin{equation*}
+        IR(U) = \begin{cases}
+        r_0+s_0 U & \text{if } U<=U_1\\
+        r_1+s_1 (U-U_1) & \text{if } U_1<U<=U_2\\
+        r_2+s_2 (U-U_2) & \text{if } U_2<U<=1
+        \end{cases}
+    \end{equation*}
+    
+    In a properly configured lending market, borrow rate naturally hovers around the kink\footnote{Gearbox has two kinks, we focus on the second kink}
+    , which we set at a typical value of $90\%$.
+    \footnote{See \href{https://morpho.org/blog/introducing-the-adaptivecurveirm-efficient-and-autonomous}{Morpho blog post}}.
+    Assuming equilibrium is achieved at the kink greatly simplifies the problem: we can parametrize the IR curve only by $r_b(90\%)$. 
+    \footnote{keeping a piecewise linear IR curve leads to a partitioned quadratic problem, which is still solvable but more complex}.
+    \begin{equation*}
+        \left\{
+        \begin{aligned}
+            U &= 0.9\\
+            N_b &= U(N_l+N_l^*)\\
+            r_b &= IR(U)
+        \end{aligned}
+        \right.
+    \end{equation*}
+
+    Also DEX liquidity is expensive for the sponsor, as it does not earn rewards but only small pool fees. 
+    Hence it's optimal for sponsor to let DEX liquidity be just enough to cover the leverage loopers seek: 
+    \begin{equation}
+        \left\{
+        \begin{aligned}
+            N_v(l-1)&=\alpha (N_d+N_d^*), 
+        \text{where } \alpha=\frac{1}{2}\\
+        N_v(l-1)&=U(N_l+N_l^*),
+        \text{where } U=0.9\\
+        \end{aligned}
+        \right.
+        \label{eq:dex_liquidity_constraint}
+    \end{equation}
+    
+    Sponsor liquidity ($N_l^*$, $N_d^*$) are thus determined by \ref{eq:dex_liquidity_constraint}.\\
+    \begin{align*}
+        N_l^* &= \frac{\beta_v R_v(l-1)}{U} - \beta_l R_l \\
+        N_d^* &= \frac{\beta_v R_v(l-1)}{\alpha} - \beta_d R_d
+    \end{align*}
+    ($\beta$'s are defined in \ref{eq:user_tvl_relationships})
+    
+\subsection{Equilibrium APYs: empirical observations}
+    Expressing each personna's APY:
+    \begin{equation*}
+    \left\{
+    \begin{aligned}
+        APY_l &= r_b(1-\epsilon) + \frac{R_l}{N_l}\\
+        APY_d &\approx \frac{r}{2}+\frac{R_d}{N_d}\\
+        APY_v &= l \space r - (l-1)r_b + \frac{R_v}{N_v}
+    \end{aligned}
+    \right.
+    \end{equation*}
+    
+    Market APYs can be estimated by AB testing, ie shocking reward budget every epoch and observing where TVL stabilitizes 
+    \footnote{In further studies we may estimate and use the half-life of this equilibrium and the present study dynamic}. \\
+    For stable lending and DEX, we observed $APY_l=15\%$ and $APY_d=20\%$. \\
+    For looping we assess the mimimum APY with high marketing impact to be $APY_v=75\%$.
+
+    Given assumptions about user TVL's, we can now solve for user TVL:
+    \begin{equation}
+    \left\{
+    \begin{aligned}
+        N_l &= \beta_l R_l &\beta_l=\frac{1}{APY_l - r_b(1-\epsilon)}\\
+        N_d &= \beta_d R_d &\beta_d=\frac{1}{APY_d - \frac{r}{2}}\\
+        N_v &= \beta_v R_v &\beta_v=\frac{1}{APY_v - lr + (l-1)r_b}
+    \end{aligned}
+    \right.
+    \label{eq:user_tvl_relationships}
+    \end{equation}
+
+
+\subsection{Sponsor budget}
+
+The sponsor is bound by a liquidity budget and a reward target.
+The latter includes reward paid, cost of capital (0 for now), offset by APY accrued:
+\begin{equation*}
+    \left\{
+    \begin{aligned}
+    N_l^* + N_d^* &<= N\\
+    (R_l+R_d+R_v) - N_l^* r_b(1-\epsilon) - N_d^* \frac{r}{2} &= R
+    \end{aligned}
+    \right.
+\end{equation*}
+Also, all rewards and notional are positive.
+
+\section{2D Linear Programming Problem}
+
+Solving for $R_v$ using the budget constraint equality, the 2D linear programming problem becomes:
+
+\begin{equation}
+\max_{R_l, R_d} \quad \text{TVL} = \alpha_l R_l + \alpha_d R_d + \alpha_0
+\end{equation}
+
+Subject to the constraints:
+    \begin{equation}
+    \left\{
+    \begin{aligned}
+    \gamma_l R_l + \gamma_d R_d &\leq N + \gamma_0 \\
+    R_l \geq 0 \\
+    R_d \geq 0 \\
+    \delta_l R_l + \delta_d R_d &\leq \delta_0 \\
+    \epsilon_l R_l + \epsilon_d R_d &\leq \epsilon_0
+    \end{aligned}
+    \right.
+    \end{equation}
+
+where the constraint coefficients are defined using intermediate variables:
+
+\begin{align}
+D &= 1 - \frac{(l-1) r_b(1-\epsilon)}{(APY_v - lr + (l-1)r_b) U} - \frac{(l-1) r}{2\alpha (APY_v - lr + (l-1)r_b)} \\
+A_l &= \frac{1}{APY_l - r_b(1-\epsilon)} \\
+A_d &= \frac{1}{APY_d - \frac{r}{2}} \\
+A_v &= \frac{1}{APY_v - lr + (l-1)r_b} \\
+B_l &= 1 + \frac{r_b(1-\epsilon)}{APY_l - r_b(1-\epsilon)} \\
+B_d &= 1 + \frac{\frac{r}{2}}{APY_d - \frac{r}{2}} \\
+C &= (l-1)\left(\frac{1}{U} + \frac{1}{\alpha}\right)
+\end{align}
+
+The coefficients become:
+
+\begin{align}
+\alpha_l &= A_l + A_v \frac{B_l}{D} \\
+\alpha_d &= A_d + A_v \frac{B_d}{D} \\
+\alpha_0 &= A_v \frac{R}{D} \\
+\gamma_l &= -A_l + A_v C \frac{B_l}{D} \\
+\gamma_d &= -A_d + A_v C \frac{B_d}{D} \\
+\gamma_0 &= A_v C \frac{R}{D} \\
+\delta_l &= \frac{U(APY_v - lr + (l-1)r_b)}{(l-1)(APY_l - r_b(1-\epsilon))} - \frac{B_l}{D} \\
+\delta_d &= -\frac{B_d}{D} \\
+\delta_0 &= \frac{R}{D} \\
+\epsilon_l &= -\frac{B_l}{D} \\
+\epsilon_d &= \frac{\alpha(APY_v - lr + (l-1)r_b)}{(l-1)(APY_d - \frac{r}{2})} - \frac{B_d}{D} \\
+\epsilon_0 &= \frac{R}{D}
+\end{align}
+
+\subsection{Summary}
+
+The 2D linear programming problem has been reduced to:
+
+\begin{itemize}
+    \item \textbf{Decision variables}: $R_l$, $R_d$ (only 2 variables)
+    \item \textbf{Objective function}: $\max \text{TVL} = \alpha_l R_l + \alpha_d R_d + \alpha_0$ (linear in $R_l$, $R_d$)
+    \item \textbf{Constraints}: 4 linear inequality constraints in $R_l$, $R_d$
+    \item \textbf{Solution method}: Standard 2D simplex algorithm by checking all feasible vertices
+\end{itemize}
+
+The variable $R_v$ has been eliminated as a parameter and is determined by the budget constraint equality. All constraints have been transformed into linear form with newly defined coefficients ($\alpha$, $\gamma$, $\delta$, $\epsilon$) that depend on the original $\beta$ coefficients and system parameters.
+
+Note that positive user TVL directly constrains input parameters:
+\begin{equation}
+    \left\{
+    \begin{aligned}
+    \text{User vault:} \quad &APY_v - lr + (l-1)r_b \geq 0 \\
+    \text{User lending:} \quad &APY_l - r_b(1-\epsilon) \geq 0 \\
+    \text{User DEX:} \quad &APY_d - \frac{r}{2} \geq 0
+    \end{aligned}
+    \right.
+\end{equation}
+
+\end{document}
+
+
