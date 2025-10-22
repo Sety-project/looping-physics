@@ -666,26 +666,25 @@ def main():
     # Sidebar for parameters
     st.sidebar.header("System Parameters")
     
-    # Core parameters
+     # Core parameters
     st.sidebar.subheader("Core Parameters")
-    l = st.sidebar.slider("Leverage (l)", 1., 11.0, 3.0, 1., help="Maximum leverage for loopers")
-    r = st.sidebar.slider("Base Asset Yield (r)", 0.05, 0.30, 0.05, 0.01, help="Yield of base asset (e.g., mRe7)")
-    r_b = st.sidebar.slider("Borrow Rate at 90% (r_b)", 0.0, 0.30, 0.30, 0.01, help="Borrow rate at 90% utilization")
+    l = st.sidebar.slider("Leverage (l)", 1., 11.0, 10.0, 1., help="Maximum leverage for loopers")
+    r = st.sidebar.slider("Base Asset Yield (r)", 0.05, 0.30, 0.2, 0.01, help="Yield of base asset (e.g., mRe7)")
+    r_b = st.sidebar.slider("Borrow Rate at 90% (r_b)", 0.0, 0.30, 0.12, 0.01, help="Borrow rate at 90% utilization")
     epsilon = st.sidebar.slider("Lending Protocol Fee (ε)", 0.0, 0.30, 0.20, 0.05, help="Fee taken by lending protocol")
     
     # System constraints
     st.sidebar.subheader("System Constraints")
     U = st.sidebar.slider("Utilization Rate (U)", 0.70, 0.95, 0.90, 0.05, help="Target utilization rate")
     alpha = st.sidebar.slider("DEX Leverage Ratio (α)", 0.3, 0.8, 0.5, 0.1, help="DEX liquidity to borrowing ratio")
-    N = st.sidebar.slider("Sponsor Liquidity Budget (N) in M$", 1, 50, 10, 1, help="Total sponsor liquidity")*1000000
+    N = st.sidebar.slider("Sponsor Liquidity Budget (N) in M$", 1, 50, 5, 1, help="Total sponsor liquidity")*1000000
     R = st.sidebar.slider("Reward Budget (R) in M$", 1, 12, 8, 1, help="Total annual reward budget")*1000000
     
     # APY targets
     st.sidebar.subheader("APY Targets")
-    APY_l = st.sidebar.slider("Lending APY Target", 0.10, 0.3, 0.30, 0.01, help="Target APY for lending")
-    APY_d = st.sidebar.slider("DEX APY Target", 0.1, 0.30, 0.20, 0.01, help="Target APY for DEX")
-    APY_v = st.sidebar.slider("Vault APY Target", 0.50, 1.50, 0.75, 0.05, help="Target APY for vault")
-    
+    APY_l = st.sidebar.slider("Lending APY Target", 0.10, 0.3, 0.22, 0.01, help="Target APY for lending")
+    APY_d = st.sidebar.slider("DEX APY Target", 0.1, 0.30, 0.25, 0.01, help="Target APY for DEX")
+    APY_v = st.sidebar.slider("Vault APY Target", 0.50, 1.50, 0.8, 0.05, help="Target APY for vault")    
     
     # Set initial R_l and R_d to be solved by optimization
     R_l = R//3  # Initial guess, will be optimized
@@ -955,34 +954,5 @@ def main():
     user_lending_ok = params['APY_l'] - params['r_b'] * (1 - params['epsilon']) >= 0
     user_dex_ok = params['APY_d'] - params['r'] / 2 >= 0
     
-    st.markdown("""
-    **User TVL positivity constraints:**
-    """)
-    st.write(f"**User Vault**: {'✅' if user_vault_ok else '❌'} ({params['APY_v'] - params['l'] * params['r'] + (params['l'] - 1) * params['r_b']:.1%})")
-    st.write(f"**User Lending**: {'✅' if user_lending_ok else '❌'} ({params['APY_l'] - params['r_b'] * (1 - params['epsilon']):.1%})")
-    st.write(f"**User DEX**: {'✅' if user_dex_ok else '❌'} ({params['APY_d'] - params['r'] / 2:.1%})")
-    
-    # Check if all constraints are satisfied
-    all_parameter_constraints_ok = r_b_lower_ok and r_b_upper_ok and apy_d_ok
-    all_user_constraints_ok = user_vault_ok and user_lending_ok and user_dex_ok
-    all_system_constraints_ok = (
-        constraints['n_star_positive'] and
-        constraints['liquidity_budget_ok'] and
-        constraints['constraint_1_ok'] and
-        constraints['constraint_2_ok']
-    )
-    
-    if all_parameter_constraints_ok and all_user_constraints_ok and all_system_constraints_ok:
-        st.success("🎉 All parameter and system constraints are satisfied!")
-    else:
-        st.error("⚠️ Some constraints are not satisfied. Please adjust parameters.")
-        
-        if not all_parameter_constraints_ok:
-            st.error("❌ Parameter validation failed")
-        if not all_user_constraints_ok:
-            st.error("❌ User TVL positivity constraints failed")
-        if not all_system_constraints_ok:
-            st.error("❌ System constraints failed")
-
 if __name__ == "__main__":
     main()
