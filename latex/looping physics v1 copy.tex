@@ -1,0 +1,200 @@
+\documentclass{article}
+\usepackage{amsmath,amssymb,hyperref}
+
+\begin{document}
+
+% Remove paragraph indentation throughout the document
+\setlength{\parindent}{0pt}
+
+\title{Bootstrapping Looping Strategies}
+\author{david.relkin@nomadic-labs.com}
+\date{\today}
+\maketitle
+
+\begin{abstract}
+    Although very profitable for users, looping strategies are resource-intensive and require skillful management at chain level.
+    This paper presents a formalization of the bootstrapping optimization of a looping ecosystem, which allows to optimize the chain sponsor's resource consumption.
+
+We only formalize the equilibrium state of the ecosystem, with strong but intuitive assumptions that lead to a closed form solution.
+    
+    The optimization problem is formulated as a constrained optimization problem and solved using the Lagrange multiplier method.
+\end{abstract}
+
+\section{Looping: a 4 Dapp Ecosystem}
+
+Looping is made up of components:
+    \begin{itemize}
+        \item a yield-bearing asset with yield $r$, correlated to a base asset (eg mRe7 correlated to USDC).
+        \item a Lending protocol (eg Gearbox passive pool):
+        \begin{itemize}
+            \item supply by users: $N_l$, and sponsor: $N_l^*$
+            \item borrowed amount: $N_b<=(N_l+N_l^*)$
+            \item the protocol's risk manager sets the borrow cap proportional to dex liquidity: $N_b<=g (N_d+N_d^*)$
+            \item borrow rate curve: $r_b=IR(\frac{N_b}{N_l+N_l^*})$
+            \item lending rate curve: $r_b(1-\epsilon)$
+            \item reward\footnote{Rewards are defined as a fixed annual budget and the sponsor is blacklisted, ie $APY = \frac{R}{N}$} paid by sponsor: $R_l$
+        \end{itemize}
+        \item a DEX protocol (eg Curve)
+        \begin{itemize}
+            \item liquidity\footnote{DEX liquidity is defined as the sum of the two pools} supplied by users: $N_d$, and sponsor: $N_d^*$ 
+            \item fee APY: $r_d\approx 0$
+            \item reward paid by sponsor: $R_d$
+        \end{itemize}
+        \item a looping vault (eg Gearbox credit account)
+        \begin{itemize}
+            \item deposit by users only: $N_v$ (and $N_v^*=0)$
+            \item We assume r is high enough so that loopers seek maximum leverage $l$, so that $N_b=N_v(l-1)$
+            \item reward paid by sponsor: $R_v$
+        \end{itemize}
+    \end{itemize}
+
+    \subsection{Equilibrium APYs: empirical observations}
+    Expressing each personna's APY:
+    \begin{equation*}
+    \left\{
+    \begin{aligned}
+        APY_l &= r_b(1-\epsilon) + \frac{R_l}{N_l}\\
+        APY_d &\approx \frac{r}{2}+\frac{R_d}{N_d}\\
+        APY_v &= l \space r - (l-1)r_b + \frac{R_v}{N_v}
+    \end{aligned}
+    \right.
+    \end{equation*}
+    
+    Market APYs can be estimated by AB testing, ie shocking reward budget every epoch and observing where TVL stabilitizes 
+    \footnote{In further studies we may estimate and use the half-life of this equilibrium and the present study dynamic}. \\
+    For stable lending and DEX, we observed $APY_l=15\%$ and $APY_d=20\%$. \\
+    For looping we assess the mimimum APY with high marketing impact to be $APY_v=75\%$.
+
+    Given assumptions about user TVL's, we can now solve for user TVL:
+    \begin{equation}
+    \left\{
+    \begin{aligned}
+        N_l &= \frac{R_l}{APY_l - r_b(1-\epsilon)}\\
+        N_d &= \frac{R_d}{APY_d - \frac{r}{2}}\\
+        N_v &\leq \frac{R_v}{APY_v - lr + (l-1)r_b}
+    \end{aligned}
+    \right.
+    \label{eq:user_tvl_relationships}
+    \end{equation}
+
+We use the last constraint to top up looping yield if necessary:
+\begin{equation}
+R_v = N_v \text{max}(0, APY_v - lr + (l-1)r_b)
+\end{equation}
+
+    \subsection{Looped amount: Lending constraint}
+    The interest rate curve is parametrized by:
+    \begin{equation*}
+        IR(U) = \begin{cases}
+        r_0+s_0 U & \text{if } U<=U_1\\
+        r_1+s_1 (U-U_1) & \text{if } U_1<U<=U_2\\
+        r_2+s_2 (U-U_2) & \text{if } U_2<U<=1
+        \end{cases}
+    \end{equation*}
+    
+    In a properly configured lending market, borrow rate naturally hovers around the kink\footnote{Gearbox has two kinks, we focus on the second kink}
+    , which we set at a typical value of $90\%$.
+    \footnote{See \href{https://morpho.org/blog/introducing-the-adaptivecurveirm-efficient-and-autonomous}{Morpho blog post}}.
+    Assuming equilibrium is achieved at the kink greatly simplifies the problem: we can parametrize the IR curve only by $IR(90\%)$. 
+    \footnote{keeping a piecewise linear IR curve leads to a partitioned quadratic problem, which is still solvable but more complex}.
+    \begin{equation*}
+        \left\{
+        \begin{aligned}
+            U &= 0.9\\
+            r_b &= IR(U)\\
+            N_b &\leq U(N_l+N_l^*)
+        \end{aligned}
+        \right.
+    \end{equation*}
+
+    \subsection{Sponsor budget}
+
+    The sponsor is bound by a liquidity budget and a reward target.
+    The latter includes reward paid, cost of capital (0 for now), offset by APY accrued:
+    \begin{equation*}
+        \left\{
+        \begin{aligned}
+        N_l^* + N_d^* &= N\\
+        (R_l+R_d+R_v) - N_l^* r_b(1-\epsilon) - N_d^* \frac{r}{2} &= R
+        \end{aligned}
+        \right.
+    \end{equation*}
+    Of course, all rewards and notional are positive.
+
+    \subsection{Looped amount: DEX liquidity constraint}
+    Curator sets cap according to the DEX liquidity:
+    \begin{equation}
+        N_d^* \leq \alpha (N_d+N_d^*)        \text{, where } \alpha=\frac{1}{2} \text{ is setup by curator}
+    \end{equation}
+    
+\subsection{Looped amount}
+
+    Since lending and DEX liquidity are expensive for the sponsor, we assume both contraints are active:
+    \begin{equation}
+        \left\{
+        \begin{aligned}
+            U(N_l+N_l^*) &= \alpha (N_d+N_d^*)\\
+            N_v(l-1)&= U(N_l+N_l^*)
+        \end{aligned}
+        \right.
+    \end{equation}
+    Solving for $N_l^*$ and $N_d^*$ and using liquidity budget constraint $N_l^* + N_d^* = N$:
+    \begin{equation}
+        \left\{
+        \begin{aligned}
+            N_l^* &= \frac{\alpha (N_d+N) - U N_l}{U + \alpha} \\
+            N_d^* &= \frac{U(N_l+N)-\alpha N_d}{U + \alpha}\\
+            N_v&= \frac{1}{l-1}\frac{1}{\frac{1}{\alpha}  + \frac{1}{U}}(N_d+N_l+N)
+        \end{aligned}
+        \right.
+    \end{equation}
+    
+
+\section{2D Linear Programming Problem}
+
+\begin{equation}
+\max_{R_l, R_d} \quad \text{TVL} = N_l + N_d + N_v
+\end{equation}
+
+
+Where:
+\begin{equation}
+\left\{
+\begin{aligned}
+N_l &= \frac{R_l}{APY_l - r_b(1-\epsilon)}\\
+N_d &= \frac{R_d}{APY_d - \frac{r}{2}}\\
+N_v&= \frac{1}{l-1}\frac{1}{\frac{1}{\alpha}  + \frac{1}{U}}(N_d+N_l+N)\\
+N_l^* &= \frac{\alpha (N_d+N) - U N_l}{U + \alpha} \\
+N_d^* &= \frac{U(N_l+N)-\alpha N_d}{U + \alpha}\\
+R_v &= N_v \text{max}(0, APY_v - lr + (l-1)r_b)
+\end{aligned}
+\right.
+\end{equation}
+
+Subject to the constraints:
+    \begin{equation}
+    \left\{
+    \begin{aligned}
+    R_l \geq 0 \\
+    R_d \geq 0 \\
+    N_l^* \geq 0 \\
+    N_d^* \geq 0 \\
+    (R_l+R_d+R_v) - N_l^* r_b(1-\epsilon) - N_d^* \frac{r}{2} &= R
+    \end{aligned}
+    \right.
+    \end{equation}
+
+
+Note that input parameters must satisfy:
+\begin{equation}
+\left\{
+\begin{aligned}
+    \frac{APY_v - lr}{l-1}\leq r_b \leq \frac{APY_l}{1-\epsilon} \\
+    \frac{r}{2} \leq APY_d\\
+\end{aligned}
+\right.
+\end{equation}
+
+\end{document}
+
+
