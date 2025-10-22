@@ -54,19 +54,16 @@ Looping is made up of:
                  N_{v}(l_{v}-1) + (N_{vd}+N_{vd}^*)(l_{vd}-1) = U(N_l+N_l^*)
             \end{equation}
             \item We assume curator cap is maxxed out: 
-            \begin{equation*}    
-                 l_v N_v + \frac{1}{2} l_{vd} (N_{vd}+N_{vd}^*) =
-                  \alpha( N_d + N_d^* +  l_{vd} (N_{vd}+N_{vd}^*))
-            \end{equation*} where $\alpha=0.5$, so that:
             \begin{equation}    
-                l_v N_v = \alpha( N_d + N_d^*)
-           \end{equation} where $\alpha=0.5$
+                \alpha_v l_v N_v + \alpha_{vd} \frac{1}{2} l_{vd} (N_{vd}+N_{vd}^*) =
+                  \frac{1}{2}(N_d + N_d^* +  l_{vd} (N_{vd}+N_{vd}^*))
+            \end{equation} where $\alpha_v=1$ and $\alpha_{vd}=1.1$
             \item lending rate curve: 
             \begin{equation}
                 r_l = \frac{r_v N_v(l_v-1)+r_{vd} (N_{vd}+N_{vd}^*)(l_{vd}-1)}{N_v(l_v-1)+(N_{vd}+N_{vd}^*)(l_{vd}-1)}(1-\epsilon)
             \end{equation}
             \item reward\footnote{Rewards are defined as a fixed annual budget and the sponsor is blacklisted, ie $APY = \frac{R}{N}$} paid by sponsor: $R_l$
-            \item capped fixed yield lending club reward: $min(r_{lc} N_l, R_{lc})$.
+            \item capped fixed yield lending club reward: $\text{min}(r_{lc} N_l, R_{lc})$.
         \end{itemize}
         
     \end{itemize}
@@ -77,10 +74,10 @@ Looping is made up of:
     \begin{equation}
     \left\{
     \begin{aligned}
-        APY_l &= r_l + \frac{R_l}{N_l}\\
+        APY_l &= r_l + \frac{R_l}{N_l} + \text{min}(r_{lc}, \frac{R_{lc}}{N_l})\\
         APY_d &\approx \frac{r}{2}+\frac{R_d}{N_d+l_{vd}N_{vd}}\\
-        APY_v &= l_v \space r - (l_v-1)r_v + \frac{R_v}{N_v}\\
-        APY_{vd} &= l_{vd} APY_d - (l_{vd}-1)r_{vd} + \frac{R_{vd}}{N_{vd}}
+        APY_v &> l_v \space r - (l_v-1)r_v + \frac{R_v}{N_v}\\
+        APY_{vd} &> l_{vd} APY_d - (l_{vd}-1)r_{vd} + \frac{R_{vd}}{N_{vd}}
     \end{aligned}
     \right.
     \end{equation}
@@ -94,7 +91,7 @@ Looping is made up of:
 
 The sponsor is bound by a liquidity budget and a reward target.
 The latter includes reward paid, cost of capital (0 for now), offset by APY accrued:
-\begin{equation*}
+\begin{equation}
     \left\{
     \begin{aligned}
     N_l^* + N_d^* + N_{vd}^* &<= N\\
@@ -102,8 +99,45 @@ The latter includes reward paid, cost of capital (0 for now), offset by APY accr
     - l_{vd} N_{vd}^* \frac{r}{2} + r_{vd} N_{vd}^* (l_{vd}-1) &= R
     \end{aligned}
     \right.
-\end{equation*}
+\end{equation}
 Also, all rewards and notionals are positive.
+
+\section{Optimization Problem}
+
+\begin{equation}
+    \max_{R_l, R_d, R_v, R_{vd}} \quad \text{TVL} = N_l + N_d + N_v + N_{vd}
+\end{equation}
+
+Subject to the constraints:
+
+\begin{equation}
+    \left\{
+    \begin{aligned}
+    R_l \geq 0 \\
+    R_d \geq 0 \\
+    R_v \geq 0 \\
+    R_{vd} \geq 0 \\
+    \end{aligned}
+    \right.
+    \begin{aligned}
+    N_l \geq 0 \\
+    N_d \geq 0 \\
+    N_v \geq 0 \\
+    N_{vd} \geq 0 \\
+    N_l^* \geq 0 \\
+    N_d^* \geq 0 \\
+    N_{vd}^* \geq 0
+    \end{aligned}
+\end{equation}
+
+\begin{equation}
+    \left\{
+    \begin{aligned}
+    N_l^* + N_d^* + N_{vd}^* &= N \\
+    \end{aligned}
+    \right.
+\end{equation}
+
 
 \end{document}
 

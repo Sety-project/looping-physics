@@ -502,6 +502,21 @@ def main():
     # Header
     st.markdown('<h1 class="main-header">🔄 Looping Physics Optimization Dashboard</h1>', unsafe_allow_html=True)
     
+    # PDF Link
+    st.markdown("""
+    <div style="text-align: center; margin-bottom: 2rem;">
+        <a href="../latex/looping physics v2.pdf" target="_blank" style="
+            display: inline-block;
+            background-color: #1f77b4;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+        ">📄 View Mathematical Paper (PDF)</a>
+    </div>
+    """, unsafe_allow_html=True)
+    
     # Sidebar for parameters
     st.sidebar.header("System Parameters")
     
