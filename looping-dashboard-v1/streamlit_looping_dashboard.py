@@ -505,7 +505,7 @@ def main():
     # PDF Link
     st.markdown("""
     <div style="text-align: center; margin-bottom: 2rem;">
-        <a href="../latex/looping physics v2.pdf" target="_blank" style="
+        <a href="https://github.com/Sety-project/looping-physics/blob/main/latex/looping%20physics%20v1.pdf" target="_blank" style="
             display: inline-block;
             background-color: #1f77b4;
             color: white;
@@ -532,7 +532,7 @@ def main():
     U = st.sidebar.slider("Utilization Rate (U)", 0.70, 0.95, 0.90, 0.05, help="Target utilization rate")
     alpha = st.sidebar.slider("DEX Leverage Ratio (α)", 0.3, 0.8, 0.5, 0.1, help="DEX liquidity to borrowing ratio")
     N = st.sidebar.slider("Sponsor Liquidity Budget (N) in M$", 1, 50, 5, 1, help="Total sponsor liquidity")*1000000
-    R = st.sidebar.slider("Reward Budget (R) in M$", 1, 12, 8, 1, help="Total annual reward budget")*1000000
+    R = st.sidebar.slider("Reward Budget (R) in M$", 1, 48, 8, 1, help="Total annual reward budget")*1000000
     
     # APY targets
     st.sidebar.subheader("APY Targets")
